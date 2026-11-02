@@ -51,3 +51,35 @@ def host_range(ip: int, prefix: int) -> tuple[int, int]:
 
     # Normal subnet: skip the network address and the broadcast address.
     return network + 1, broadcast - 1
+
+def usable_hosts(prefix: int) -> int:
+    if not 0 <= prefix <= 32:
+        raise ValueError(f"prefix must be 0-32, got {prefix}")
+
+    # /32 is a single host.
+    if prefix == 32:
+        return 1
+
+    # /31 is a point-to-point link (RFC 3021): both addresses are usable.
+    if prefix == 31:
+        return 2
+
+    # Normal subnet: subtract the network and broadcast addresses.
+    return 2 ** (32 - prefix) - 2
+
+
+def split_network(ip: int, prefix: int, new_prefix: int) -> list[tuple[int, int]]:
+    if not 0 <= prefix <= 32:
+        raise ValueError(f"prefix must be 0-32, got {prefix}")
+    if not 0 <= new_prefix <= 32:
+        raise ValueError(f"new prefix must be 0-32, got {new_prefix}")
+    if new_prefix <= prefix:
+        raise ValueError(
+            f"new prefix /{new_prefix} must be longer than /{prefix}"
+        )
+
+    start = network_address(ip, prefix)
+    block_size = 1 << (32 - new_prefix)
+    count = 1 << (new_prefix - prefix)
+
+    return [(start + i * block_size, new_prefix) for i in range(count)]
