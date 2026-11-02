@@ -83,3 +83,12 @@ def split_network(ip: int, prefix: int, new_prefix: int) -> list[tuple[int, int]
     count = 1 << (new_prefix - prefix)
 
     return [(start + i * block_size, new_prefix) for i in range(count)]
+
+def networks_overlap(ip_a: int, prefix_a: int, ip_b: int, prefix_b: int) -> bool:
+    a_start = network_address(ip_a, prefix_a)
+    a_end = broadcast_address(ip_a, prefix_a)
+    b_start = network_address(ip_b, prefix_b)
+    b_end = broadcast_address(ip_b, prefix_b)
+
+    # Two ranges overlap when each one starts before the other ends.
+    return a_start <= b_end and b_start <= a_end

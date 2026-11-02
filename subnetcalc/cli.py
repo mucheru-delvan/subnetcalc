@@ -2,9 +2,15 @@ import argparse
 import sys
 
 from subnetcalc.core import (
-    ip_to_int, int_to_ip, prefix_to_mask,
-    network_address, broadcast_address, host_range,
-    usable_hosts, split_network,
+    broadcast_address,
+    host_range,
+    int_to_ip,
+    ip_to_int,
+    network_address,
+    networks_overlap,
+    prefix_to_mask,
+    split_network,
+    usable_hosts,
 )
 
 
@@ -46,7 +52,19 @@ def format_split(ip: int, prefix: int, new_prefix: int) -> str:
         lines.append(f"  {int_to_ip(net)}/{p}  {int_to_ip(first)} - {int_to_ip(last)}")
     return "\n".join(lines)
 
+def format_overlap(ip: int, prefix: int, other_ip: int, other_prefix: int) -> str:
+    a = f"{int_to_ip(network_address(ip, prefix))}/{prefix}"
+    b = f"{int_to_ip(network_address(other_ip, other_prefix))}/{other_prefix}"
 
+    if not networks_overlap(ip, prefix, other_ip, other_prefix):
+        return f"Overlap check: {a} and {b} do not overlap"
+    if prefix == other_prefix:
+        return f"Overlap check: {a} and {b} are the same network"
+    # CIDR blocks nest, so the shorter prefix is the bigger block.
+    if prefix < other_prefix:
+        return f"Overlap check: {a} contains {b}"
+    return f"Overlap check: {a} is inside {b}"
+    
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="subnetcalc",
@@ -55,14 +73,22 @@ def main() -> None:
     parser.add_argument("cidr", help="e.g. 192.168.10.77/26")
     parser.add_argument("--split", type=int, metavar="N",
                         help="split into blocks of prefix length N")
+    parser.add_argument("--overlaps", metavar="CIDR",
+                        help="check whether this network overlaps another CIDR")
     args = parser.parse_args()
 
     try:
+        
         ip, prefix = parse_cidr(args.cidr)
         print(format_summary(ip, prefix))
         if args.split is not None:
             print()
             print(format_split(ip, prefix, args.split))
+        if args.overlaps is not None:
+            other_ip, other_prefix = parse_cidr(args.overlaps)
+            print()
+            print(format_overlap(ip, prefix, other_ip, other_prefix))
+            
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

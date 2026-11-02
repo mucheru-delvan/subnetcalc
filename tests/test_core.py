@@ -8,6 +8,7 @@ from subnetcalc.core import (
     int_to_ip,
     ip_to_int,
     network_address,
+    networks_overlap,
     prefix_to_mask,
 )
 
@@ -81,3 +82,29 @@ def test_prefix_to_mask_rejects_bad_prefix(bad_prefix):
 def test_round_trip():
     for ip in ("0.0.0.0", "192.168.10.0", "255.255.255.255"):
         assert int_to_ip(ip_to_int(ip)) == ip
+
+
+OVERLAP_CASES = [
+    ("192.168.10.0/24", "192.168.10.64/26"),   # contains
+    ("192.168.10.64/26", "192.168.10.0/24"),   # inside
+    ("192.168.10.0/26", "192.168.10.64/26"),   # adjacent, no overlap
+    ("10.0.0.0/8", "10.255.255.255/32"),       # last address of the block
+    ("10.0.0.5/32", "10.0.0.5/32"),            # identical /32
+    ("10.0.0.0/31", "10.0.0.2/31"),            # adjacent /31s
+    ("0.0.0.0/0", "8.8.8.8/32"),               # everything contains everything
+    ("172.16.0.0/12", "172.32.0.0/12"),        # just past the end
+]
+
+
+@pytest.mark.parametrize("a, b", OVERLAP_CASES)
+def test_overlap_matches_ipaddress(a, b):
+    a_ip, a_prefix = a.split("/")
+    b_ip, b_prefix = b.split("/")
+
+    mine = networks_overlap(
+        ip_to_int(a_ip), int(a_prefix), ip_to_int(b_ip), int(b_prefix)
+    )
+    ref = ipaddress.ip_network(a, strict=False).overlaps(
+        ipaddress.ip_network(b, strict=False)
+    )
+    assert mine == ref
