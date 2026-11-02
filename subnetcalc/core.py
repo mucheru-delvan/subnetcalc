@@ -26,3 +26,28 @@ def prefix_to_mask(prefix: int) -> int:
     host_bits = 32 - prefix
     all_ones = (1 << 32) - 1
     return all_ones ^ ((1 << host_bits) - 1)
+
+def network_address(ip: int, prefix: int) -> int:
+    return ip & prefix_to_mask(prefix)
+
+
+def broadcast_address(ip: int, prefix: int) -> int:
+    mask = prefix_to_mask(prefix)
+    return network_address(ip, prefix) | (~mask & 0xFFFFFFFF)
+
+
+def host_range(ip: int, prefix: int) -> tuple[int, int]:
+    network = network_address(ip, prefix)
+    broadcast = broadcast_address(ip, prefix)
+
+    # /32 is a single host: the address is both first and last.
+    if prefix == 32:
+        return network, network
+
+    # /31 is a point-to-point link (RFC 3021): both addresses are usable,
+    # so there is no separate network/broadcast address to skip.
+    if prefix == 31:
+        return network, broadcast
+
+    # Normal subnet: skip the network address and the broadcast address.
+    return network + 1, broadcast - 1
